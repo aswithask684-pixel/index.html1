@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Farm Connect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial;background:#f0fdf4;margin:0}
+nav{background:green;color:white;padding:10px;display:flex;justify-content:space-around;position:sticky;top:0;z-index:20;flex-wrap:wrap}
+nav span{cursor:pointer;font-weight:bold;padding:5px 6px;font-size:13px}
+.container{padding:12px;max-width:800px;margin:auto}
+.card{background:white;padding:14px;margin:10px 0;border-radius:14px;box-shadow:0 3px 10px #0002;border-left:5px solid green;overflow:hidden}
+.hidden{display:none!important}
+button{background:green;color:white;padding:10px 14px;border:none;border-radius:9px;cursor:pointer;margin:5px 0;font-weight:bold;width:100%}
+button.small{width:auto;padding:6px 12px;font-size:12px}
+button.blue{background:#2563eb} button.red{background:#dc2626} button.orange{background:#f59e0b} button.gray{background:gray}
+input,select,textarea{padding:10px;width:92%;margin:5px 0;border:1px solid #ccc;border-radius:8px}
+.crop-img{width:100%;height:190px;object-fit:cover;border-radius:10px;margin:6px 0}
+.preview{width:100%;max-height:200px;object-fit:cover;border-radius:10px;display:none;margin:8px 0;border:2px solid green}
+.bid{background:#f0f9ff;border:1px dashed #2563eb;padding:6px;margin:4px 0;border-radius:7px;font-size:12px}
+.timer{background:#fef3c7;padding:4px 8px;border-radius:6px;font-size:11px;display:inline-block}
+.expired{background:#fee2e2;color:#991b1b;padding:12px;text-align:center;border-radius:10px;border:2px dashed red}
+.ratingBadge{background:#fef9c3;padding:3px 8px;border-radius:20px;font-size:12px;font-weight:bold}
+.payBox{background:#f0fdf4;border:2px solid green;padding:12px;border-radius:12px;margin:8px 0;text-align:center}
+.qrImg{width:200px;height:200px;border:4px solid green;border-radius:12px;margin:10px auto;display:block}
+.stars{font-size:28px;cursor:pointer;text-align:center}
+.star{color:#ddd}.star.filled{color:#facc15}
+</style>
+</head>
+<body>
+
+<nav id="mainNav" class="hidden">
+<span onclick="show('home')">🏠 Market</span>
+<span onclick="show('auction')">🔨 Auction</span>
+<span onclick="show('orders')">📦 Orders</span>
+<span onclick="show('farmer')">👨‍🌾 Sell</span>
+<span onclick="show('account')">👤 Account</span>
+</nav>
+
+<div id="loginPage" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#15803d,#86efac);padding:12px">
+<div class="card" style="max-width:400px;width:100%">
+<h2 style="text-align:center">🌾 Uzhavan Direct</h2>
+<input id="uname" placeholder="Full Name"><input id="uphone" type="tel" placeholder="Phone - 10 digit">
+<input id="uvillage" placeholder="Village - Type any village"><textarea id="uaddr" placeholder="Address"></textarea>
+<input id="udist" placeholder="District - Type any"><input id="uupi" placeholder="Your UPI ID (for receiving payment) - Ex: ramesh@okicici"><select id="urole"><option value="farmer">Farmer - Payment Receiver</option><option value="buyer">Buyer - QR Scanner</option></select>
+<button onclick="doLogin()">Login →</button><p id="loginError" style="color:red;font-size:13px"></p>
+</div>
+</div>
+
+<div id="app" class="hidden">
+<div class="container">
+<div style="display:flex;justify-content:space-between;align-items:center;background:#dcfce7;padding:8px 12px;border-radius:10px;margin-bottom:10px;flex-wrap:wrap"><div id="welcome"></div><button class="small" style="background:red;width:auto" onclick="doLogout()">Logout</button></div>
+
+<div id="home" class="page"><h2>Market - QR Payment + Rating</h2><div id="marketList"></div></div>
+<div id="auction" class="page hidden"><h2>🔨 Auction</h2><div id="auctionList"></div></div>
+<div id="orders" class="page hidden"><h2>📦 Orders + Return + Rating</h2><div id="orderList"></div></div>
+<div id="farmer" class="page hidden">
+<h2>👨‍🌾 Sell Any Crop + UPI</h2><div class="card">
+<input id="cname" placeholder="Crop Name - ANY crop you want"><input id="cqty" type="number" placeholder="Qty kg"><input id="cprice" type="number" placeholder="Price Rs/kg">
+<p><b>📸 Photo 24H valid + Your UPI QR will be auto-created</b></p>
+<input type="file" id="cphoto" accept="image/*" capture="environment" onchange="previewImg(this)"><img id="preview" class="preview">
+<button class="blue" onclick="document.getElementById('cphoto').click()">📷 Photo</button><textarea id="caddr2"></textarea><button onclick="addCrop()">Post with QR</button>
+</div>
+</div>
+<div id="account" class="page hidden"><div id="accBox"></div></div>
+
+<div id="paymentModal" class="hidden"><div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0009;z-index:100;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto"><div class="card" style="max-width:400px;width:100%;text-align:center;border-left-color:#2563eb"><h3 id="payTitle"></h3><div id="payDetails"></div><div id="qrSection" class="payBox"></div><label><input type="radio" name="pay" value="upi" checked onchange="updatePayUI()"> Scan QR & Pay UPI</label> <label><input type="radio" name="pay" value="cod" onchange="updatePayUI()"> COD</label><div style="display:flex;gap:6px;margin-top:10px"><button id="payConfirmBtn" onclick="confirmPay()">I Have Paid ✓</button><button class="gray" onclick="closePay()">Cancel</button></div><p style="font-size:11px;color:gray">QR will open in GPay / PhonePe / Paytm</p></div></div></div>
+
+<div id="ratingModal" class="hidden"><div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0009;z-index:101;display:flex;align-items:center;justify-content:center;padding:12px"><div class="card" style="max-width:350px;width:100%;text-align:center"><h3>⭐ Rate</h3><p id="rateFor"></p><div class="stars" id="starBox"><span class="star" onclick="setStars(1)">★</span><span class="star" onclick="setStars(2)">★</span><span class="star" onclick="setStars(3)">★</span><span class="star" onclick="setStars(4)">★</span><span class="star" onclick="setStars(5)">★</span></div><textarea id="rateComment" placeholder="Comment"></textarea><button onclick="submitRating()">Submit</button><button class="gray" onclick="closeRating()">Later</button></div></div></div>
+
+</div>
+</div>
+
+<script>
+const EXPIRY=24*60*60*1000;
+function getUser(){try{return JSON.parse(localStorage.getItem('uz_user_qr')||'null')}catch{return null}}
+function saveUser(u){localStorage.setItem('uz_user_qr',JSON.stringify(u))}
+let tempPhoto="", currentPayIndex=null, currentRateIdx=null, tempStars=0;
+
+function previewImg(i){if(i.files&&i.files[0]){let r=new FileReader(); r.onload=e=>{tempPhoto=e.target.result; let p=document.getElementById('preview'); p.src=tempPhoto; p.style.display='block';}; r.readAsDataURL(i.files[0]);}}
+function doLogin(){let n=uname.value.trim(), ph=uphone.value.trim(), vill=uvillage.value.trim(), ad=uaddr.value.trim(), dist=udist.value.trim(), upi=uupi.value.trim(), role=urole.value; if(!n||!ph||!vill||!ad||!dist){loginError.innerText="Fill all except UPI (optional)"; return;} saveUser({name:n,phone:ph,village:vill,address:ad,district:dist,upi:upi||ph+"@upi",role:role}); startApp();}
+function doLogout(){localStorage.removeItem('uz_user_qr'); location.reload();}
+function startApp(){let u=getUser(); if(!u){loginPage.classList.remove('hidden'); mainNav.classList.add('hidden'); app.classList.add('hidden');}else{loginPage.classList.remove('hidden'); mainNav.classList.remove('hidden'); app.classList.remove('hidden'); loginPage.classList.add('hidden'); app.classList.remove('hidden'); mainNav.classList.remove('hidden'); welcome.innerText=`👋 ${u.name} | ${u.village} | UPI:${u.upi}`; caddr2.value=`${u.village}, ${u.address}, ${u.district}`; renderAccount(); show('home');} document.getElementById('loginPage').classList.toggle('hidden',!!getUser());}
+function isExpired(t){return (Date.now()-t)>EXPIRY}
+function timeLeft(t){let l=EXPIRY-(Date.now()-t); if(l<=0) return "Expired"; let h=Math.floor(l/3600000), m=Math.floor((l%3600000)/60000); return `${h}h ${m}m left`;}
+
+let products=JSON.parse(localStorage.getItem('uz_products_qr')||'null')||[];
+let orders=JSON.parse(localStorage.getItem('uz_orders_qr')||'null')||[];
+function saveProducts(){localStorage.setItem('uz_products_qr',JSON.stringify(products))}
+function saveOrders(){localStorage.setItem('uz_orders_qr',JSON.stringify(orders))}
+function show(p){document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden')); document.getElementById(p).classList.remove('hidden'); render(); renderOrders();}
+function avgRating(p){if(!p.ratings||p.ratings.length===0) return {avg:0,count:0}; let s=p.ratings.reduce((a,b)=>a+b.stars,0); return {avg:(s/p.ratings.length).toFixed(1), count:p.ratings.length};}
+function renderStars(avg){let full=Math.round(avg); let s=''; for(let i=1;i<=5;i++) s+= i<=full?'⭐':'☆'; return s;}
+
+function renderAccount(){
+ let u=getUser(); if(!u) return;
+ let my=products.filter(pr=>pr.ownerPhone===u.phone);
+ accBox.innerHTML=`<div class="card"><h3>${u.name}</h3><p>📞 ${u.phone}<br>🏡 ${u.village}<br>💳 UPI: ${u.upi}<br>📍 ${u.district}<br>Role: ${u.role}</p><p>Your UPI QR will be shown to buyers automatically</p></div><div class="card"><h3>My Crops (${my.length})</h3>${my.map(m=>{let ra=avgRating(m); return `<div class="bid">${m.name} - ${ra.count?renderStars(ra.avg)+' '+ra.avg+'/5':''} - Rs.${m.basePrice}</div>`}).join('')||'None'}</div>`;
+}
+
+function render(){
+ let mList=marketList, aList=auctionList; mList.innerHTML=''; aList.innerHTML='';
+ if(products.length===0){mList.innerHTML=`<div class="card"><p>No crops yet. Farmer - Add ANY crop. Your UPI QR will auto generate.</p></div>`;}
+ products.forEach((p,i)=>{
+   let exp=p.img&&isExpired(p.postedAt);
+   let imgTag=!p.img?`<div style="background:#eee;height:100px;border-radius:10px;display:flex;align-items:center;justify-content:center">No Photo</div>`:exp?`<div class="expired">📸 Expired</div>`:`<div><img src="${p.img}" class="crop-img"><div class="timer">⏰ ${timeLeft(p.postedAt)} | 📍 ${p.village}</div></div>`;
+   let ra=avgRating(p);
+   let ratingHtml=ra.count?`<span class="ratingBadge">${renderStars(ra.avg)} ${ra.avg} (${ra.count})</span>`:`<span class="ratingBadge">New</span>`;
+   mList.innerHTML+=`<div class="card"><h3>${p.name} - ${p.qty}kg - ${p.farmer}</h3>${ratingHtml}<br>${imgTag}<p>🏡 ${p.village} | 💳 UPI: ${p.farmerUpi}<br>📞 ${p.ownerPhone}</p><div><span style="background:#dcfce7;padding:5px 8px;border-radius:6px;font-size:12px">Rs.${p.basePrice}</span></div><div style="display:flex;gap:6px"><button class="small blue" onclick="openPay(${i})">💳 QR Pay & Buy</button><button class="small" onclick="show('auction')">🔨 Bid</button></div><p style="font-size:11px">↩️ Return 24H | ⭐ Rating</p></div>`;
+
+   let bidsHtml=p.bids.map(b=>`<div class="bid">💰 ${b.name} - Rs.${b.price}</div>`).join('');
+   let high=Math.max(...p.bids.map(b=>b.price), p.basePrice);
+   let allRatings=(p.ratings||[]).map(r=>`<div class="bid">⭐ ${r.stars} by ${r.by} - ${r.comment}</div>`).join('');
+   aList.innerHTML+=`<div class="card"><h3>${p.name} | Highest Rs.${high} ● LIVE</h3>${ratingHtml}<br>${imgTag}<p>${p.farmer} - UPI: ${p.farmerUpi}</p>${bidsHtml}${allRatings}<input id="bid${i}" type="number" placeholder="> ${high}"><button class="small" onclick="bid(${i})">Bid</button><br><button class="small blue" onclick="openPay(${i})">QR Pay Rs.${high}</button></div>`;
+ });
+}
+
+function addCrop(){
+ let u=getUser(); let n=cname.value.trim(), q=cqty.value, pr=cprice.value;
+ if(!n||!pr){alert("Enter ANY crop name & price"); return;}
+ products.push({name:n, qty:q||0, farmer:u.name, ownerPhone:u.phone, farmerUpi:u.upi, address:u.address+", "+u.district, village:u.village, basePrice:Number(pr), mandi:Number(pr)+12, retail:Number(pr)+25, postedAt:Date.now(), img:tempPhoto, bids:[], ratings:[]});
+ saveProducts(); tempPhoto=""; preview.style.display='none'; cname.value=''; cqty.value=''; cprice.value=''; show('home');
+}
+function bid(i){let v=document.getElementById('bid'+i).value; if(!v) return; let high=Math.max(...products[i].bids.map(b=>b.price), products[i].basePrice); if(Number(v)<=high) return alert('> '+high); products[i].bids.push({name:getUser().name, price:Number(v)}); saveProducts(); render();}
+
+// QR PAYMENT
+function openPay(i){
+ currentPayIndex=i; let p=products[i]; let high=Math.max(...p.bids.map(b=>b.price), p.basePrice); let total=high*(p.qty||1);
+ let upiString=`upi://pay?pa=${encodeURIComponent(p.farmerUpi)}&pn=${encodeURIComponent(p.farmer)}&am=${total}&cu=INR&tn=Uzhavan-${p.name}`;
+ let qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
+ payTitle.innerText=`QR Pay - ${p.name}`;
+ payDetails.innerHTML=`Farmer: ${p.farmer}<br>Village: ${p.village}<br>UPI: <b>${p.farmerUpi}</b><br>Amount: <b>Rs.${total}</b> (${p.qty}kg x Rs.${high})`;
+ document.getElementById('qrSection').innerHTML=`<p><b>Scan with GPay / PhonePe / Paytm</b></p><img src="${qrUrl}" class="qrImg"><p style="font-size:12px;word-break:break-all;background:white;padding:6px;border-radius:6px">${upiString}</p><p style="font-size:12px;color:green">✅ UPI ID: ${p.farmerUpi}<br>After scanning, click "I Have Paid"</p>`;
+ document.getElementById('paymentModal').classList.remove('hidden'); updatePayUI();
+}
+function updatePayUI(){
+ let method=document.querySelector('input[name="pay"]:checked').value;
+ document.getElementById('qrSection').style.display= method==='upi'? 'block' : 'none';
+ document.getElementById('payConfirmBtn').innerText= method==='upi'? 'I Have Scanned & Paid ✓' : 'Place COD Order';
+}
+function closePay(){paymentModal.classList.add('hidden'); currentPayIndex=null;}
+function confirmPay(){
+ let p=products[currentPayIndex]; if(!p) return;
+ let method=document.querySelector('input[name="pay"]:checked').value;
+ let high=Math.max(...p.bids.map(b=>b.price), p.basePrice);
+ let order={id:Date.now(), crop:p.name, qty:p.qty, farmer:p.farmer, farmerPhone:p.ownerPhone, farmerUpi:p.farmerUpi, village:p.village, price:high, total:high*p.qty, method:method==='upi'?'UPI QR Paid':'COD', status:method==='upi'?'Paid - Verify with farmer':'COD Pending', orderTime:Date.now(), returnStatus:"No Return", img:p.img, rated:false, productIdx:currentPayIndex};
+ orders.unshift(order); saveOrders(); closePay(); alert(method==='upi'?'QR Payment recorded! Show screenshot to farmer for verification':'COD Order placed'); show('orders');
+}
+
+function renderOrders(){
+ let list=orderList; if(!list) return;
+ if(orders.length===0){list.innerHTML=`<div class="card"><p>No orders</p></div>`; return;}
+ list.innerHTML='';
+ orders.forEach((o,idx)=>{
+   let canReturn=(Date.now()-o.orderTime)<EXPIRY && o.returnStatus==="No Return";
+   list.innerHTML+=`<div class="card" style="border-left-color:${o.method.includes('UPI')?'blue':'orange'}"><h3>${o.crop} - ${o.qty}kg</h3>${o.img?`<img src="${o.img}" style="width:100%;height:110px;object-fit:cover;border-radius:8px">`:''}<p>From: ${o.farmer}<br>UPI: ${o.farmerUpi}<br>Total Rs.${o.total} | ${o.method}<br>Status: ${o.status}<br>Return: ${o.returnStatus}</p>${canReturn?`<button class="small red" onclick="requestReturn(${idx})">↩️ Return</button>`:''} ${!o.rated?`<button class="small orange" onclick="openRating(${idx})">⭐ Rate Farmer</button>`:`<p style="color:green">✅ Rated ${o.myRating}⭐</p>`}</div>`;
+ });
+}
+function requestReturn(idx){let r=prompt("Reason?"); if(!r) return; orders[idx].returnStatus=`Requested - ${r} - Refund via ${orders[idx].farmerUpi}`; saveOrders(); renderOrders();}
+
+function openRating(idx){currentRateIdx=idx; tempStars=0; let o=orders[idx]; rateFor.innerText=`Rate ${o.farmer} for ${o.crop}`; document.querySelectorAll('#starBox.star').forEach(s=>s.classList.remove('filled')); ratingModal.classList.remove('hidden'); rateComment.value='';}
+function closeRating(){ratingModal.classList.add('hidden');}
+function setStars(n){tempStars=n; document.querySelectorAll('#starBox.star').forEach((s,i)=>{if(i<n) s.classList.add('filled'); else s.classList.remove('filled');});}
+function submitRating(){
+ if(tempStars===0) return alert("Select stars");
+ let comment=rateComment.value||"No comment";
+ let o=orders[currentRateIdx];
+ let product=products[o.productIdx] || products.find(pr=>pr.ownerPhone===o.farmerPhone && pr.name===o.crop);
+ if(product){if(!product.ratings) product.ratings=[]; product.ratings.push({stars:tempStars, comment:comment, by:getUser().name, time:Date.now()}); saveProducts();}
+ o.rated=true; o.myRating=tempStars; saveOrders(); closeRating(); render(); renderOrders(); alert(`Rated ${tempStars}⭐`);
+}
+
+startApp();
+</script>
+</body>
+</html>
